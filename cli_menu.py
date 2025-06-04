@@ -10,47 +10,41 @@ from textwrap import dedent
 from pathlib import Path
 from typing import List, Dict
 
-# ── colors ───────────────────────────────────────────────
 OK, ERR, END = "\033[1;92m", "\033[1;31m", "\033[0m"
 cls   = lambda: os.system("clear" if os.name == "posix" else "cls")
 pause = lambda: input("\nEnter ↵ برای ادامه…")
 
 def run(cmd: List[str], desc: str, interactive=False):
-    """Run command & show ✅/❌."""
     print(f"→ {desc}…", end=" ")
     try:
-        if interactive:
-            subprocess.check_call(cmd)
-        else:
-            subprocess.check_call(cmd,
-                                  stdout=subprocess.DEVNULL,
-                                  stderr=subprocess.DEVNULL)
+        subprocess.check_call(cmd) if interactive else subprocess.check_call(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"{OK}✅{END}")
     except subprocess.CalledProcessError as e:
         print(f"{ERR}❌{END}")
         if not interactive:
             print("   ", e)
 
-# ── banner info (ifconfig.co) ─────────────────────────────
+# ── IP banner via ifconfig.co ─────────────────────────────
 def ip_info() -> Dict[str, str]:
     try:
         import requests
         j = requests.get("https://ifconfig.co/json", timeout=4).json()
-        return {"ip":  j.get("ip", "-"),
-                "isp": j.get("asn_org", "-"),
-                "cty": j.get("country_iso", "-")}
+        return {"ip":  j.get("ip","-"),
+                "isp": j.get("asn_org","-"),
+                "cty": j.get("country_iso","-")}
     except Exception:
-        return {"ip": "-", "isp": "-", "cty": "-"}
+        return {"ip":"-","isp":"-","cty":"-"}
 
-# ══════════════════ NETWORK ═══════════════════════════════
+# ═══════════════ NETWORK ════════════════════════════════
 def apply_dns(ns: List[str]):
     run(["sudo","systemctl","stop","systemd-resolved"],   "Stop systemd-resolved")
     run(["sudo","systemctl","disable","systemd-resolved"],"Disable systemd-resolved")
     run(["sudo","rm","-f","/etc/resolv.conf"],            "Remove resolv.conf")
     lines = "\n".join(f"nameserver {x}" for x in ns) + "\n"
-    run(["sudo","bash","-c", f"echo -e '{lines}' > /etc/resolv.conf"], "Write resolv.conf")
-    run(["sudo","chattr","+i","/etc/resolv.conf"],        "Lock file")
-    pause()
+    run(["sudo","bash","-c", f"echo -e '{lines}' > /etc/resolv.conf"],
+        "Write resolv.conf")
+    run(["sudo","chattr","+i","/etc/resolv.conf"], "Lock file"); pause()
 
 def dns_menu():
     while True:
@@ -83,7 +77,7 @@ forward-zone:
 def install_unbound():
     cls()
     run(["sudo","apt","install","unbound","-y"], "Install unbound")
-    run(["sudo","bash","-c",f"echo '{UNBOUND}' > /etc/unbound/unbound.conf"],
+    run(["sudo","bash","-c", f"echo '{UNBOUND}' > /etc/unbound/unbound.conf"],
         "Write config")
     run(["sudo","unbound-checkconf"], "Check config", True)
     run(["sudo","systemctl","restart","unbound"], "Restart unbound")
@@ -102,47 +96,38 @@ def network_menu():
         elif c=="0": return
         else: pause()
 
-# ═══════════════ SYSTEM SETTINGS ═══════════════════════════
+# ═══════════════ SYSTEM SETTINGS (Backup removed) ═══════════════
 def time_sync():
     cls()
     run(["sudo","timedatectl","set-ntp","true"], "Enable NTP")
     run(["sudo","apt","install","ntpdate","-y"], "Install ntpdate")
-    run(["sudo","ntpdate","-u","pool.ntp.org"],   "Sync time")
+    run(["sudo","ntpdate","-u","pool.ntp.org"], "Sync time")
     print("⏰", datetime.now().strftime("%Y-%m-%d %H:%M:%S")); pause()
 
 def distro_info():
-    cls(); run(["lsb_release","-a"], "Distro info", True); pause()
+    cls(); run(["lsb_release","-a"],"Distro info",True); pause()
 
 def htop_live():
-    cls(); run(["sudo","apt","install","htop","-y"], "Install htop")
-    run(["htop"], "Launch htop", True); pause()
-
-BASE = Path(__file__).resolve().parent
-BACK = BASE / "backuper_menu.sh"
-def backup_wizard():
-    cls()
-    if not BACK.exists():
-        print(f"{ERR}backuper_menu.sh not found{END}"); pause(); return
-    run(["sudo","chmod","+x",str(BACK)],"Chmod"); run(["sudo",str(BACK)],"Run wizard",True); pause()
+    cls(); run(["sudo","apt","install","htop","-y"],"Install htop")
+    run(["htop"],"Launch htop",True); pause()
 
 def system_menu():
     while True:
-        cls(); print("SYSTEM SETTINGS\n1) Sync Time\n2) Distro info\n3) htop\n4) Backup wizard\n0) Back")
+        cls(); print("SYSTEM SETTINGS\n1) Sync Time\n2) Distro info\n3) Live status (htop)\n0) Back")
         c=input("\nSelect #: ").strip()
         if   c=="1": time_sync()
         elif c=="2": distro_info()
         elif c=="3": htop_live()
-        elif c=="4": backup_wizard()
         elif c=="0": return
         else: pause()
 
-# ═══════════════ SECURITY ═══════════════════════════════════
+# ═══════════════ SECURITY ════════════════════════════════════
 def ssh_port():
     cls(); p=input("New SSH port: ").strip()
     if not p.isdigit() or not 1<=int(p)<=65535: pause(); return
-    run(["sudo","sed","-i",rf"s/^#?Port .*/Port {p}/","/etc/ssh/sshd_config"],
-        "Set SSH port")
-    run(["sudo","ufw","allow",f"{p}/tcp"],"Open UFW"); run(["sudo","systemctl","restart","ssh"],"Restart"); pause()
+    run(["sudo","sed","-i",rf"s/^#?Port .*/Port {p}/","/etc/ssh/sshd_config"],"Set port")
+    run(["sudo","ufw","allow",f"{p}/tcp"],"Open UFW")
+    run(["sudo","systemctl","restart","ssh"],"Restart"); pause()
 
 def icmp_toggle(enable:bool):
     v="0" if enable else "1"
@@ -170,7 +155,7 @@ def security_menu():
         elif c=="0": return
         else: pause()
 
-# ═══════════════ WEBSERVER ═══════════════════════════════════
+# ═══════════════ WEBSERVER ════════════════════════════════════
 apt = lambda p: run(["sudo","apt","install",p,"-y"],f"Install {p}")
 svc = lambda s,a: run(["sudo","systemctl",a,s],f"{a} {s}")
 
@@ -206,7 +191,7 @@ def apache_vhost():
     </Directory>
 </VirtualHost>"""
     run(["sudo","bash","-c",f"echo '{vhost}' > {conf}"],"Write vhost")
-    run(["sudo","a2ensite",f"{d}.conf"],"Enable site")
+    run(["sudo","a2ensite",f"{d}.conf"],"Enable")
     run(["sudo","apache2ctl","configtest"],"Test",True)
     svc("apache2","reload"); pause()
 
@@ -234,8 +219,7 @@ def web_menu():
 def main():
     info=ip_info()
     while True:
-        cls()
-        print("############################################")
+        cls(); print("############################################")
         print(f" IP: {info['ip']} | ISP: {info['isp']} | {info['cty']}")
         print("############################################")
         print("1) Network 🌐  2) System ⚙️  3) Security 🔒  4) Webserver 🕸️  0) Exit")
