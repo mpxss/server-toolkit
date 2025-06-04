@@ -36,4 +36,4 @@ EOF
 chmod +x "$EXEC_BIN"
 
 echo -e "\n\e[1;92m✔ Installation complete!\e[0m"
-echo "» از این پس فقط بنویسید:  \e[1;93mstk\e[0m"
+echo "» write:  \e[1;93mstk\e[0m"
