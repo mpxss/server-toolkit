@@ -1,10 +1,6 @@
 # 🚀 جعبه‌‌ابزار مدیریت سرور (Server-Toolkit)
 
-> **یک منوی تعاملی برای انجام سریع کارهای ضروری سرور**  
-> ریپو: **https://github.com/mpxss/server-toolkit**  
-> لایسنس: **MIT**
 
-![banner](https://raw.githubusercontent.com/mpxss/server-toolkit/main/docs/assets/banner.png)
 
 ---
 
